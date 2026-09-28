@@ -1,0 +1,27 @@
+{
+  "name": "@zfile/sdk",
+  "version": "0.1.0",
+  "description": "Official Node.js SDK for uploading and managing files through the ZFile API.",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["zfile", "file-upload", "file-hosting", "upload", "sdk"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zx-afk-dev/zfile-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zx-afk-dev/zfile-sdk/issues"
+  },
+  "homepage": "https://zfile.web.id",
+  "files": ["index.js", "src", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test"
+  }
+}
