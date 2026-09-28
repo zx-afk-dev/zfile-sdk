@@ -52,11 +52,13 @@ await zfile.upload('./file.txt', { expiry: 'never' });
 
 The SDK uses ZFile's existing API:
 
-1. `POST /api/v1/upload/init`
-2. Direct resumable upload to the storage endpoint returned by ZFile
-3. `POST /api/v1/upload/finalize`
+1. `POST /api/sdk/upload/init`
+2. Direct `PUT` to the signed Storage URL returned by ZFile
+3. `POST /api/sdk/upload/finalize`
 
 The SDK sends ZFile's expected metadata fields: `filename`, `size`, `mimeType`, `contentHash`, and `expiry`.
+
+The SDK uses a dedicated ZFile SDK endpoint so the Node client does not need Supabase credentials or Storage RLS policies.
 
 The SDK does not contain a separate storage system, database, or service-role credentials.
 
