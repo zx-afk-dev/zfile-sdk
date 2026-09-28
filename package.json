@@ -1,6 +1,6 @@
 {
   "name": "zfile-sdk",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Node.js SDK for ZFile.",
   "main": "index.js",
   "exports": { ".": "./index.js" },
