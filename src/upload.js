@@ -52,86 +52,42 @@ function base64(value) {
   return Buffer.from(String(value), 'utf8').toString('base64');
 }
 
-async function resumableUpload(target, buffer, mimeType, options = {}) {
-  if (!target.resumableUrl) {
-    throw new ZFileError('ZFile API tidak memberikan resumable upload endpoint.', {
-      code: 'MISSING_UPLOAD_ENDPOINT'
+async function signedUpload(target, buffer, mimeType, options = {}) {
+  if (!target.url) {
+    throw new ZFileError('ZFile API tidak memberikan signed upload URL.', {
+      code: 'MISSING_UPLOAD_URL'
     });
   }
 
-  const created = await fetch(target.resumableUrl, {
-    method: 'POST',
+  const response = await fetch(target.url, {
+    method: 'PUT',
     headers: {
-      authorization: `Bearer ${target.anonKey}`,
-      'x-signature': target.token,
-      'x-upsert': 'false',
-      'tus-resumable': '1.0.0',
-      'upload-length': String(buffer.length),
-      'upload-metadata': [
-        `bucketName ${base64(target.bucket)}`,
-        `objectName ${base64(target.path)}`,
-        `contentType ${base64(mimeType)}`,
-        `cacheControl ${base64('3600')}`
-      ].join(',')
-    }
+      'content-type': mimeType || 'application/octet-stream',
+      'cache-control': 'max-age=3600',
+      'x-upsert': 'false'
+    },
+    body: buffer
   });
 
-  if (!created.ok) {
+  if (!response.ok) {
     throw new ZFileError(
-      `Storage upload initialization gagal (${created.status}).`,
-      { code: 'STORAGE_INIT_FAILED', status: created.status,
-        details: await created.text().catch(() => '') }
-    );
-  }
-
-  let location = created.headers.get('location');
-  if (!location) {
-    throw new ZFileError('Storage tidak mengembalikan upload URL.', {
-      code: 'MISSING_UPLOAD_LOCATION'
-    });
-  }
-
-  location = new URL(location, target.resumableUrl).toString();
-
-  const chunkSize = options.chunkSize || 6 * 1024 * 1024;
-  let offset = 0;
-
-  while (offset < buffer.length) {
-    const chunk = buffer.subarray(offset, Math.min(offset + chunkSize, buffer.length));
-
-    const response = await fetch(location, {
-      method: 'PATCH',
-      headers: {
-        authorization: `Bearer ${target.anonKey}`,
-        'x-signature': target.token,
-        'content-type': 'application/offset+octet-stream',
-        'tus-resumable': '1.0.0',
-        'upload-offset': String(offset)
-      },
-      body: chunk
-    });
-
-    if (!response.ok) {
-      throw new ZFileError(`Storage upload gagal (${response.status}).`, {
+      `Storage upload gagal (${response.status}).`,
+      {
         code: 'STORAGE_UPLOAD_FAILED',
         status: response.status,
         details: await response.text().catch(() => '')
-      });
-    }
+      }
+    );
+  }
 
-    const nextOffset = Number(response.headers.get('upload-offset'));
-    offset = Number.isFinite(nextOffset) ? nextOffset : offset + chunk.length;
-
-    if (typeof options.onProgress === 'function') {
-      options.onProgress({
-        uploaded: offset,
-        total: buffer.length,
-        percent: Math.round(offset / buffer.length * 100)
-      });
-    }
+  if (typeof options.onProgress === 'function') {
+    options.onProgress({
+      uploaded: buffer.length,
+      total: buffer.length,
+      percent: 100
+    });
   }
 }
-
 async function upload(client, source, options = {}) {
   const input = normalizeSource(source, options);
   const { buffer, filename, mimeType } = input;
@@ -149,7 +105,7 @@ async function upload(client, source, options = {}) {
   const contentHash = sha256(buffer);
   const expiry = options.expiry || 'never';
 
-  const init = await client.request('/api/v1/upload/init', {
+  const init = await client.request('/api/sdk/upload/init', {
     method: 'POST',
     body: { filename, size: buffer.length, mimeType, contentHash, expiry }
   });
@@ -163,9 +119,9 @@ async function upload(client, source, options = {}) {
     });
   }
 
-  await resumableUpload(init.upload, buffer, mimeType, options);
+  await signedUpload(init.upload, buffer, mimeType, options);
 
-  const finalize = await client.request('/api/v1/upload/finalize', {
+  const finalize = await client.request('/api/sdk/upload/finalize', {
     method: 'POST',
     body: { ticket: init.ticket }
   });
